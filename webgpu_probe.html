@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WebGPU Probe</title>
+
+<style>
+body{
+    font-family:system-ui,sans-serif;
+    margin:30px;
+    background:#fafafa;
+}
+
+button{
+    padding:10px 20px;
+    font-size:15px;
+}
+
+table{
+    border-collapse:collapse;
+    width:100%;
+    margin-top:20px;
+}
+
+th,td{
+    border:1px solid #ccc;
+    padding:8px;
+    text-align:left;
+}
+
+th{
+    background:#eee;
+}
+
+pre{
+    background:#f5f5f5;
+    padding:15px;
+    overflow:auto;
+}
+</style>
+
+</head>
+<body>
+
+<h2>WebGPU GPU Probe</h2>
+
+<button id="probe">Probe GPUs</button>
+<button id="download">Download JSON</button>
+
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Low Power</th>
+<th>High Performance</th>
+</tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+
+</table>
+
+<h3>Raw JSON</h3>
+
+<pre id="json"></pre>
+
+<script>
+
+let report = {};
+
+function value(v){
+    if(v === undefined) return "N/A";
+    if(v === null) return "null";
+    if(typeof v === "object") return JSON.stringify(v);
+    return String(v);
+}
+
+function row(name,a,b){
+
+    const tr=document.createElement("tr");
+
+    tr.innerHTML=`
+        <td>${name}</td>
+        <td>${value(a)}</td>
+        <td>${value(b)}</td>
+    `;
+
+    tbody.appendChild(tr);
+
+}
+
+async function getAdapter(pref){
+
+    const adapter = await navigator.gpu.requestAdapter({
+        powerPreference:pref
+    });
+
+    if(!adapter)
+        return null;
+
+    const info = adapter.info || {};
+
+    return {
+
+        adapter,
+
+        preference:pref,
+
+        vendor:info.vendor,
+
+        architecture:info.architecture,
+
+        device:info.device,
+
+        description:info.description,
+
+        features:[...adapter.features].sort(),
+
+        limits:Object.fromEntries(
+            Object.entries(adapter.limits)
+        )
+
+    };
+
+}
+
+document.getElementById("probe").onclick=async()=>{
+
+    tbody.innerHTML="";
+    report={};
+
+    if(!navigator.gpu){
+
+        alert("WebGPU unsupported");
+
+        return;
+
+    }
+
+    const low=
+        await getAdapter("low-power");
+
+    const high=
+        await getAdapter("high-performance");
+
+    report.lowPower=low;
+    report.highPerformance=high;
+
+    row(
+        "Adapter Exists",
+        !!low,
+        !!high
+    );
+
+    row(
+        "Vendor",
+        low?.vendor,
+        high?.vendor
+    );
+
+    row(
+        "Description",
+        low?.description,
+        high?.description
+    );
+
+    row(
+        "Architecture",
+        low?.architecture,
+        high?.architecture
+    );
+
+    row(
+        "Device ID",
+        low?.device,
+        high?.device
+    );
+
+    row(
+        "Feature Count",
+        low?.features.length,
+        high?.features.length
+    );
+
+    row(
+        "Limit Count",
+        Object.keys(low?.limits||{}).length,
+        Object.keys(high?.limits||{}).length
+    );
+
+    row(
+        "Same Vendor",
+        "",
+        low?.vendor===high?.vendor
+    );
+
+    row(
+        "Same Device",
+        "",
+        low?.device===high?.device
+    );
+
+    row(
+        "Same Description",
+        "",
+        low?.description===high?.description
+    );
+
+    row(
+        "Same JS Adapter Object",
+        "",
+        low?.adapter===high?.adapter
+    );
+
+    row(
+        "Features Equal",
+        "",
+        JSON.stringify(low?.features)===JSON.stringify(high?.features)
+    );
+
+    document.getElementById("json").textContent=
+        JSON.stringify({
+
+            timestamp:new Date().toISOString(),
+
+            browser:navigator.userAgent,
+
+            lowPower:{
+                ...low,
+                adapter:undefined
+            },
+
+            highPerformance:{
+                ...high,
+                adapter:undefined
+            }
+
+        },null,2);
+
+};
+
+document.getElementById("download").onclick=()=>{
+
+    const blob=new Blob(
+        [document.getElementById("json").textContent],
+        {type:"application/json"}
+    );
+
+    const a=document.createElement("a");
+
+    a.href=URL.createObjectURL(blob);
+
+    a.download="gpu_probe.json";
+
+    a.click();
+
+};
+
+</script>
+
+</body>
+</html>

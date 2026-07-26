@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Localhost Timing Probe</title>
+<style>
+body {
+    font-family: system-ui, sans-serif;
+    margin: 30px;
+}
+button {
+    padding: 10px 18px;
+    font-size: 16px;
+    cursor: pointer;
+}
+table {
+    border-collapse: collapse;
+    margin-top: 20px;
+    width: 100%;
+}
+th, td {
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+    text-align: left;
+}
+th {
+    background: #eee;
+}
+pre {
+    background: #f4f4f4;
+    padding: 12px;
+    overflow-x: auto;
+    max-height: 400px;
+}
+</style>
+</head>
+<body>
+
+<h2>Localhost Timing Probe</h2>
+
+<button id="run">Probe</button>
+
+<table id="table">
+<thead>
+<tr>
+<th>Target</th>
+<th>Median (ms)</th>
+<th>p90 (ms)</th>
+<th>p95 (ms)</th>
+<th>StdDev (ms)</th>
+<th>Error</th>
+<th>Perf Entry</th>
+<th>Transfer Size</th>
+<th>Duration</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<pre id="log">Results will appear here...</pre>
+
+<script>
+// Base ports to scan on 127.0.0.1
+const PORTS = [
+    80, 443, 1234, 3080, 3001, 4000, 5001, 
+    7860, 8000, 8080, 8081, 8188, 9090, 9222
+];
+
+// Generate URLs and add the specific 11434 experiment variations
+const TARGETS = PORTS.map(port => `http://127.0.0.1:${port}/`);
+TARGETS.push(
+    `http://127.0.0.1:11434/`,
+    `http://localhost:11434/`,
+    `http://[::1]:11434/`
+);
+
+const ROUNDS = 50;
+
+async function probe(url) {
+    let result = {
+        state: "success",
+        errorName: "",
+        errorMessage: "",
+        elapsed: 0,
+        resourceEntries: 0,
+        transferSize: "-",
+        duration: "-"
+    };
+
+    performance.clearResourceTimings();
+    
+    const t0 = performance.now();
+
+    try {
+        await fetch(url, {
+            mode: "no-cors",
+            cache: "no-store"
+        });
+    } catch(e) {
+        result.state = "error";
+        result.errorName = e.name;
+        result.errorMessage = e.message;
+    }
+
+    const t1 = performance.now();
+    result.elapsed = +(t1 - t0).toFixed(3);
+
+    const entries = performance.getEntriesByName(url);
+    result.resourceEntries = entries.length;
+
+    if (entries.length) {
+        result.transferSize = entries[0].transferSize;
+        result.duration = entries[0].duration;
+    }
+
+    return result;
+}
+
+// Math helpers
+function median(arr) {
+    const sorted = [...arr].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)];
+}
+
+function percentile(arr, p) {
+    const sorted = [...arr].sort((a, b) => a - b);
+    const index = (p / 100) * (sorted.length - 1);
+    if (Math.floor(index) === index) return sorted[index];
+    const i = Math.floor(index);
+    const fraction = index - i;
+    return sorted[i] + (sorted[i + 1] - sorted[i]) * fraction;
+}
+
+function standardDeviation(arr) {
+    const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+    const variance = arr.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / arr.length;
+    return Math.sqrt(variance);
+}
+
+document.getElementById("run").onclick = async () => {
+    
+    // Console warnings
+    console.warn("Open ports often fail much faster than closed ports.");
+    console.warn("This page measures browser-visible timing only.");
+    console.warn("It does NOT bypass CORS or Private Network Access.");
+
+    const tbody = document.querySelector("#table tbody");
+    tbody.innerHTML = "<tr><td colspan='9'>Probing in progress...</td></tr>";
+
+    // Randomize probe order to prevent bias
+    const randomizedTargets = [...TARGETS].sort(() => Math.random() - 0.5);
+
+    const report = {
+        browserInfo: {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            origin: location.origin,
+            timestamp: new Date().toISOString(),
+            secureContext: window.isSecureContext,
+            crossOriginIsolated: window.crossOriginIsolated || false
+        },
+        results: []
+    };
+
+    const runResults = [];
+
+    for (const url of randomizedTargets) {
+        const samples = [];
+        let lastResult = null;
+
+        for (let i = 0; i < ROUNDS; i++) {
+            const res = await probe(url);
+            samples.push(res.elapsed);
+            lastResult = res; 
+            
+            // Short delay to avoid flooding and network buffering
+            await new Promise(r => setTimeout(r, 50));
+        }
+
+        runResults.push({
+            url: url,
+            median: median(samples),
+            p90: percentile(samples, 90),
+            p95: percentile(samples, 95),
+            stdDev: standardDeviation(samples),
+            errorName: lastResult.state === "error" ? lastResult.errorName : "-",
+            resourceEntries: lastResult.resourceEntries,
+            transferSize: lastResult.transferSize,
+            duration: lastResult.duration !== "-" ? lastResult.duration.toFixed(3) : "-",
+            rawSamples: samples // Kept for the JSON export
+        });
+    }
+
+    // Sort visually by URL for consistency in the table
+    runResults.sort((a, b) => a.url.localeCompare(b.url));
+    report.results = runResults;
+
+    tbody.innerHTML = "";
+
+    for (const r of report.results) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${r.url}</td>
+            <td>${r.median.toFixed(2)}</td>
+            <td>${r.p90.toFixed(2)}</td>
+            <td>${r.p95.toFixed(2)}</td>
+            <td>${r.stdDev.toFixed(2)}</td>
+            <td>${r.errorName}</td>
+            <td>${r.resourceEntries}</td>
+            <td>${r.transferSize}</td>
+            <td>${r.duration}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    document.getElementById("log").textContent = JSON.stringify(report, null, 2);
+    console.log(report);
+};
+
+</script>
+
+</body>
+</html>

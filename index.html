@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Browser Diagnostics Toolkit</title>
+
+<style>
+
+:root{
+    --bg:#f5f7fa;
+    --card:#ffffff;
+    --border:#dcdcdc;
+    --primary:#2563eb;
+    --text:#222;
+    --muted:#666;
+}
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    background:var(--bg);
+    font-family:Segoe UI,Roboto,Arial,sans-serif;
+    color:var(--text);
+}
+
+header{
+    background:#1e293b;
+    color:white;
+    padding:30px;
+}
+
+header h1{
+    margin:0;
+}
+
+header p{
+    margin-top:8px;
+    color:#d7dce4;
+}
+
+main{
+    max-width:1100px;
+    margin:auto;
+    padding:30px;
+}
+
+.grid{
+
+    display:grid;
+
+    grid-template-columns:
+        repeat(auto-fit,minmax(320px,1fr));
+
+    gap:20px;
+
+}
+
+.card{
+
+    background:var(--card);
+
+    border:1px solid var(--border);
+
+    border-radius:10px;
+
+    padding:22px;
+
+    box-shadow:
+        0 2px 8px rgba(0,0,0,.05);
+
+}
+
+.card h2{
+
+    margin-top:0;
+
+    font-size:20px;
+
+}
+
+.card p{
+
+    color:var(--muted);
+
+    min-height:70px;
+
+}
+
+.card a{
+
+    display:inline-block;
+
+    text-decoration:none;
+
+    background:var(--primary);
+
+    color:white;
+
+    padding:10px 18px;
+
+    border-radius:6px;
+
+    font-weight:600;
+
+}
+
+.card a:hover{
+
+    opacity:.9;
+
+}
+
+footer{
+
+    margin-top:50px;
+
+    text-align:center;
+
+    color:#777;
+
+    padding:30px;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+
+<h1>Browser Diagnostics Toolkit</h1>
+
+<p>
+Standalone browser diagnostics for WebGPU, browser capabilities,
+environment inspection, localhost timing analysis and report generation.
+</p>
+
+</header>
+
+<main>
+
+<div class="grid">
+
+<div class="card">
+
+<h2>🌐 Browser Environment Diagnostics</h2>
+
+<p>
+Collect browser, operating system, screen, permissions,
+storage, WebGL and WebGPU environment information.
+</p>
+
+<a href="browser_environment_diagnostics.html">
+Open
+</a>
+
+</div>
+
+<div class="card">
+
+<h2>🔌 Localhost Probe</h2>
+
+<p>
+Measure localhost fetch timing across multiple ports
+to compare connection behaviour and latency.
+</p>
+
+<a href="localhost_probe.html">
+Open
+</a>
+
+</div>
+
+<div class="card">
+
+<h2>🖥️ WebGPU Diagnostics</h2>
+
+<p>
+Inspect the active WebGPU adapter,
+supported features, limits and execute
+a simple compute benchmark.
+</p>
+
+<a href="webgpu_diagnostics.html">
+Open
+</a>
+
+</div>
+
+<div class="card">
+
+<h2>⚙️ System Capability Report</h2>
+
+<p>
+Generate a capability report describing
+browser APIs, graphics capabilities,
+permissions and platform support.
+</p>
+
+<a href="system_capability_report.html">
+Open
+</a>
+
+</div>
+
+<div class="card">
+
+<h2>📊 Timing Visualizer</h2>
+
+<p>
+Load localhost timing results and compute
+statistics including median, standard deviation
+and charts.
+</p>
+
+<a href="timing_visualizer.html">
+Open
+</a>
+
+</div>
+
+<div class="card">
+
+<h2>📝 Report Generator</h2>
+
+<p>
+Convert collected JSON diagnostics
+into a readable Markdown report suitable
+for bug reports and documentation.
+</p>
+
+<a href="report_generator.html">
+Open
+</a>
+
+</div>
+
+</div>
+
+<footer>
+
+Browser Diagnostics Toolkit • Local HTML Utilities
+
+</footer>
+
+</main>
+
+</body>
+</html>

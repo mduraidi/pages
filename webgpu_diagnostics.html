@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>WebGPU Diagnostics</title>
+<style>
+body{
+    font-family:system-ui,sans-serif;
+    margin:30px;
+}
+pre{
+    background:#f5f5f5;
+    padding:12px;
+    overflow:auto;
+}
+button{
+    padding:10px 18px;
+}
+</style>
+</head>
+<body>
+
+<h2>WebGPU Diagnostics</h2>
+
+<button id="run">Run</button>
+
+<pre id="output"></pre>
+
+<script>
+
+const out = document.getElementById("output");
+
+function println(v){
+    out.textContent += v + "\n";
+}
+
+document.getElementById("run").onclick = async () => {
+
+    out.textContent = "";
+
+    if(!navigator.gpu){
+        println("WebGPU not supported.");
+        return;
+    }
+
+    const adapter = await navigator.gpu.requestAdapter();
+
+    if(!adapter){
+        println("No adapter.");
+        return;
+    }
+
+    println("=== Adapter Info ===");
+
+    if(adapter.info){
+        println(JSON.stringify(adapter.info,null,2));
+    }else{
+        println("adapter.info unavailable");
+    }
+
+    println("\n=== Features ===");
+
+    println([...adapter.features].join("\n"));
+
+    println("\n=== Limits ===");
+
+    println(JSON.stringify(adapter.limits,null,2));
+
+    const device = await adapter.requestDevice();
+
+    const N = 1024 * 1024;
+
+    const storage = device.createBuffer({
+        size: N * 4,
+        usage:
+            GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST
+    });
+
+    const readback = device.createBuffer({
+        size: N * 4,
+        usage:
+            GPUBufferUsage.COPY_DST |
+            GPUBufferUsage.MAP_READ
+    });
+
+    const shader = device.createShaderModule({
+        code: `
+@group(0) @binding(0)
+var<storage,read_write> data : array<u32>;
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) id : vec3<u32>) {
+    if(id.x < arrayLength(&data)){
+        data[id.x] = data[id.x] + 1u;
+    }
+}
+`
+    });
+
+    const pipeline =
+        device.createComputePipeline({
+            layout:"auto",
+            compute:{
+                module:shader,
+                entryPoint:"main"
+            }
+        });
+
+    const bind =
+        device.createBindGroup({
+            layout:pipeline.getBindGroupLayout(0),
+            entries:[
+                {
+                    binding:0,
+                    resource:{
+                        buffer:storage
+                    }
+                }
+            ]
+        });
+
+    const start = performance.now();
+
+    const encoder = device.createCommandEncoder();
+
+    const pass = encoder.beginComputePass();
+
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0,bind);
+
+    pass.dispatchWorkgroups(Math.ceil(N/64));
+
+    pass.end();
+
+    encoder.copyBufferToBuffer(
+        storage,
+        0,
+        readback,
+        0,
+        N*4
+    );
+
+    device.queue.submit([encoder.finish()]);
+
+    await readback.mapAsync(GPUMapMode.READ);
+
+    const elapsed = performance.now() - start;
+
+    println("\n=== Benchmark ===");
+    println("Processed: " + N + " elements");
+    println("Elapsed: " + elapsed.toFixed(2) + " ms");
+
+};
+
+</script>
+
+</body>
+</html>

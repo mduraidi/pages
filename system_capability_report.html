@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>System Capability Report</title>
+
+<style>
+body{
+    font-family:system-ui,sans-serif;
+    margin:30px;
+    background:#fafafa;
+}
+
+button{
+    padding:10px 20px;
+    margin-right:10px;
+}
+
+table{
+    border-collapse:collapse;
+    width:100%;
+    margin-top:20px;
+}
+
+th,td{
+    border:1px solid #ccc;
+    padding:8px;
+    text-align:left;
+}
+
+th{
+    background:#eee;
+}
+
+pre{
+    background:#f5f5f5;
+    padding:15px;
+    overflow:auto;
+    white-space:pre-wrap;
+}
+</style>
+
+</head>
+<body>
+
+<h2>System Capability Report</h2>
+
+<button id="collect">Collect</button>
+<button id="download">Download JSON</button>
+
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+
+<h3>JSON</h3>
+
+<pre id="json"></pre>
+
+<script>
+
+const report={};
+
+function add(name,value){
+
+    report[name]=value;
+
+    const tr=document.createElement("tr");
+
+    tr.innerHTML=
+        `<td>${name}</td><td>${String(value)}</td>`;
+
+    document.getElementById("tbody")
+        .appendChild(tr);
+
+}
+
+function supported(name,obj){
+
+    add(name,obj in window || obj in navigator);
+
+}
+
+async function permission(name){
+
+    try{
+
+        const p=
+            await navigator.permissions.query({name});
+
+        return p.state;
+
+    }catch{
+
+        return "unsupported";
+
+    }
+
+}
+
+async function collect(){
+
+    document.getElementById("tbody").innerHTML="";
+
+    Object.keys(report).forEach(k=>delete report[k]);
+
+    add("Timestamp",
+        new Date().toISOString());
+
+    add("Secure Context",
+        window.isSecureContext);
+
+    add("Cross Origin Isolated",
+        self.crossOriginIsolated);
+
+    add("Online",
+        navigator.onLine);
+
+    add("Cookie Enabled",
+        navigator.cookieEnabled);
+
+    add("Language",
+        navigator.language);
+
+    add("Languages",
+        navigator.languages.join(", "));
+
+    add("Time Zone",
+        Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+    add("Logical CPU",
+        navigator.hardwareConcurrency ?? "unknown");
+
+    add("Device Memory",
+        navigator.deviceMemory ?? "unsupported");
+
+    add("Max Touch Points",
+        navigator.maxTouchPoints);
+
+    add("Screen",
+        screen.width+" × "+screen.height);
+
+    add("Available Screen",
+        screen.availWidth+" × "+screen.availHeight);
+
+    add("Pixel Ratio",
+        devicePixelRatio);
+
+    add("Color Depth",
+        screen.colorDepth);
+
+    add("Window Size",
+        innerWidth+" × "+innerHeight);
+
+    supported("WebGPU","gpu");
+
+    supported("WebGL","WebGLRenderingContext");
+
+    supported("WebGL2","WebGL2RenderingContext");
+
+    supported("WebAssembly","WebAssembly");
+
+    supported("WebRTC","RTCPeerConnection");
+
+    supported("Web Workers","Worker");
+
+    supported("SharedWorker","SharedWorker");
+
+    supported("Service Worker","serviceWorker");
+
+    supported("SharedArrayBuffer","SharedArrayBuffer");
+
+    supported("BroadcastChannel","BroadcastChannel");
+
+    supported("OffscreenCanvas","OffscreenCanvas");
+
+    supported("Web Locks","locks");
+
+    supported("Clipboard","clipboard");
+
+    supported("Bluetooth","bluetooth");
+
+    supported("USB","usb");
+
+    supported("Serial","serial");
+
+    supported("HID","hid");
+
+    supported("MediaDevices","mediaDevices");
+
+    supported("File System Access","showOpenFilePicker");
+
+    supported("CompressionStream","CompressionStream");
+
+    supported("DecompressionStream","DecompressionStream");
+
+    add("Geolocation Permission",
+        await permission("geolocation"));
+
+    add("Camera Permission",
+        await permission("camera"));
+
+    add("Microphone Permission",
+        await permission("microphone"));
+
+    add("Notifications Permission",
+        await permission("notifications"));
+
+    add("Clipboard Read",
+        await permission("clipboard-read"));
+
+    add("Clipboard Write",
+        await permission("clipboard-write"));
+
+    if(navigator.storage){
+
+        try{
+
+            const est=
+                await navigator.storage.estimate();
+
+            add("Storage Quota",
+                est.quota);
+
+            add("Storage Usage",
+                est.usage);
+
+        }catch{}
+
+    }
+
+    add("Performance Time Origin",
+        performance.timeOrigin);
+
+    add("Performance Now Resolution",
+        performance.now().toFixed(5));
+
+    try{
+
+        const canvas=document.createElement("canvas");
+
+        const gl=
+            canvas.getContext("webgl2") ||
+            canvas.getContext("webgl");
+
+        if(gl){
+
+            add("Max Texture Size",
+                gl.getParameter(gl.MAX_TEXTURE_SIZE));
+
+            add("Max Cube Map Size",
+                gl.getParameter(gl.MAX_CUBE_MAP_TEXTURE_SIZE));
+
+            add("Max Renderbuffer Size",
+                gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));
+
+            add("Max Vertex Attributes",
+                gl.getParameter(gl.MAX_VERTEX_ATTRIBS));
+
+            add("Max Texture Units",
+                gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS));
+
+            add("WebGL Version",
+                gl.getParameter(gl.VERSION));
+
+            add("GLSL Version",
+                gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
+
+            add("Supported Extensions",
+                gl.getSupportedExtensions().length);
+
+        }
+
+    }catch(e){
+
+        add("WebGL Error",e.message);
+
+    }
+
+    if(navigator.gpu){
+
+        try{
+
+            const adapter=
+                await navigator.gpu.requestAdapter();
+
+            if(adapter){
+
+                add("GPU Features",
+                    [...adapter.features].length);
+
+                add("GPU Limits",
+                    Object.keys(adapter.limits).length);
+
+                if(adapter.info){
+
+                    add("GPU Vendor",
+                        adapter.info.vendor);
+
+                    add("GPU Device",
+                        adapter.info.device);
+
+                    add("GPU Architecture",
+                        adapter.info.architecture);
+
+                    add("GPU Description",
+                        adapter.info.description);
+
+                }
+
+            }
+
+        }catch(e){
+
+            add("WebGPU Error",
+                e.message);
+
+        }
+
+    }
+
+    document.getElementById("json")
+        .textContent=
+        JSON.stringify(report,null,2);
+
+}
+
+document.getElementById("collect")
+.onclick=collect;
+
+document.getElementById("download")
+.onclick=()=>{
+
+    const blob=new Blob(
+        [JSON.stringify(report,null,2)],
+        {type:"application/json"}
+    );
+
+    const a=document.createElement("a");
+
+    a.href=URL.createObjectURL(blob);
+
+    a.download="system-capability-report.json";
+
+    a.click();
+
+};
+
+</script>
+
+</body>
+</html>

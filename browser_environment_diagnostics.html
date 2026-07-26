@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Browser Environment Diagnostics</title>
+
+<style>
+body{
+    font-family:system-ui,sans-serif;
+    margin:30px;
+    background:#fafafa;
+}
+
+button{
+    padding:10px 20px;
+    font-size:15px;
+}
+
+table{
+    border-collapse:collapse;
+    margin-top:20px;
+    width:100%;
+}
+
+th,td{
+    border:1px solid #ddd;
+    padding:8px;
+    text-align:left;
+}
+
+th{
+    background:#eee;
+}
+
+pre{
+    background:#f4f4f4;
+    padding:15px;
+    overflow:auto;
+}
+</style>
+
+</head>
+<body>
+
+<h2>Browser Environment Diagnostics</h2>
+
+<button id="run">Collect Environment</button>
+<button id="download">Download JSON</button>
+
+<table id="table">
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<h3>Raw JSON</h3>
+
+<pre id="json"></pre>
+
+<script>
+
+let report={};
+
+function add(name,value){
+
+    report[name]=value;
+
+    const tr=document.createElement("tr");
+
+    tr.innerHTML=
+        `<td>${name}</td><td>${String(value)}</td>`;
+
+    document.querySelector("#table tbody")
+        .appendChild(tr);
+
+}
+
+async function permission(name){
+
+    try{
+
+        const p=
+            await navigator.permissions.query({
+                name
+            });
+
+        return p.state;
+
+    }catch{
+
+        return "unsupported";
+
+    }
+
+}
+
+async function run(){
+
+    report={};
+
+    document.querySelector("#table tbody").innerHTML="";
+
+    add("Timestamp",
+        new Date().toISOString());
+
+    add("User Agent",
+        navigator.userAgent);
+
+    add("Platform",
+        navigator.platform);
+
+    add("Language",
+        navigator.language);
+
+    add("Languages",
+        navigator.languages.join(", "));
+
+    add("Time Zone",
+        Intl.DateTimeFormat()
+        .resolvedOptions().timeZone);
+
+    add("Online",
+        navigator.onLine);
+
+    add("Cookies Enabled",
+        navigator.cookieEnabled);
+
+    add("Hardware Threads",
+        navigator.hardwareConcurrency);
+
+    add("Device Memory (GB)",
+        navigator.deviceMemory ?? "unsupported");
+
+    add("Max Touch Points",
+        navigator.maxTouchPoints);
+
+    add("PDF Viewer",
+        navigator.pdfViewerEnabled ?? "unknown");
+
+    add("Screen Width",
+        screen.width);
+
+    add("Screen Height",
+        screen.height);
+
+    add("Available Width",
+        screen.availWidth);
+
+    add("Available Height",
+        screen.availHeight);
+
+    add("Color Depth",
+        screen.colorDepth);
+
+    add("Pixel Ratio",
+        devicePixelRatio);
+
+    add("Window Width",
+        innerWidth);
+
+    add("Window Height",
+        innerHeight);
+
+    add("Secure Context",
+        window.isSecureContext);
+
+    add("Cross Origin Isolated",
+        crossOriginIsolated);
+
+    add("SharedArrayBuffer",
+        typeof SharedArrayBuffer !== "undefined");
+
+    add("WebAssembly",
+        typeof WebAssembly !== "undefined");
+
+    add("Service Worker",
+        "serviceWorker" in navigator);
+
+    add("WebGPU",
+        "gpu" in navigator);
+
+    add("Bluetooth",
+        "bluetooth" in navigator);
+
+    add("USB",
+        "usb" in navigator);
+
+    add("Serial",
+        "serial" in navigator);
+
+    add("HID",
+        "hid" in navigator);
+
+    add("Clipboard",
+        "clipboard" in navigator);
+
+    add("Storage Estimate",
+        JSON.stringify(
+            await navigator.storage.estimate()
+        ));
+
+    add("Notifications",
+        await permission("notifications"));
+
+    add("Geolocation",
+        await permission("geolocation"));
+
+    add("Camera",
+        await permission("camera"));
+
+    add("Microphone",
+        await permission("microphone"));
+
+    add("Clipboard Read",
+        await permission("clipboard-read"));
+
+    add("Clipboard Write",
+        await permission("clipboard-write"));
+
+    // WebGL
+
+    try{
+
+        const canvas=document.createElement("canvas");
+
+        const gl=
+            canvas.getContext("webgl") ||
+            canvas.getContext("experimental-webgl");
+
+        if(gl){
+
+            const dbg=
+                gl.getExtension(
+                    "WEBGL_debug_renderer_info"
+                );
+
+            if(dbg){
+
+                add(
+                    "WebGL Vendor",
+                    gl.getParameter(
+                        dbg.UNMASKED_VENDOR_WEBGL
+                    )
+                );
+
+                add(
+                    "WebGL Renderer",
+                    gl.getParameter(
+                        dbg.UNMASKED_RENDERER_WEBGL
+                    )
+                );
+
+            }else{
+
+                add(
+                    "WebGL Renderer",
+                    "Debug extension unavailable"
+                );
+
+            }
+
+        }else{
+
+            add("WebGL","Unavailable");
+
+        }
+
+    }catch(e){
+
+        add("WebGL Error",e.message);
+
+    }
+
+    // WebGPU
+
+    if(navigator.gpu){
+
+        try{
+
+            const adapter=
+                await navigator.gpu.requestAdapter();
+
+            if(adapter){
+
+                add(
+                    "WebGPU Features",
+                    [...adapter.features].length
+                );
+
+                if(adapter.info){
+
+                    add(
+                        "GPU Vendor",
+                        adapter.info.vendor
+                    );
+
+                    add(
+                        "GPU Device",
+                        adapter.info.device
+                    );
+
+                    add(
+                        "GPU Architecture",
+                        adapter.info.architecture
+                    );
+
+                    add(
+                        "GPU Description",
+                        adapter.info.description
+                    );
+
+                }
+
+            }
+
+        }catch(e){
+
+            add("WebGPU Error",e.message);
+
+        }
+
+    }
+
+    document.getElementById("json")
+        .textContent=
+        JSON.stringify(report,null,2);
+
+}
+
+document.getElementById("run")
+.onclick=run;
+
+document.getElementById("download")
+.onclick=function(){
+
+    const blob=new Blob(
+        [JSON.stringify(report,null,2)],
+        {type:"application/json"}
+    );
+
+    const a=document.createElement("a");
+
+    a.href=URL.createObjectURL(blob);
+
+    a.download="environment-report.json";
+
+    a.click();
+
+};
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Timing Visualizer</title>
+
+<style>
+body{
+    font-family:system-ui,sans-serif;
+    margin:30px;
+}
+
+textarea{
+    width:100%;
+    height:220px;
+    font-family:monospace;
+}
+
+table{
+    border-collapse:collapse;
+    margin-top:20px;
+    width:100%;
+}
+
+th,td{
+    border:1px solid #ccc;
+    padding:8px;
+    text-align:left;
+}
+
+canvas{
+    border:1px solid #ccc;
+    margin-top:20px;
+}
+</style>
+
+</head>
+<body>
+
+<h2>Timing Visualizer</h2>
+
+<p>Paste the JSON output from the Localhost Timing Probe.</p>
+
+<textarea id="input"></textarea>
+
+<br><br>
+
+<button id="analyze">Analyze</button>
+
+<table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Median</th>
+<th>Mean</th>
+<th>Min</th>
+<th>Max</th>
+<th>Std Dev</th>
+</tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+
+</table>
+
+<canvas id="chart" width="900" height="420"></canvas>
+
+<script>
+
+function mean(a){
+    return a.reduce((x,y)=>x+y,0)/a.length;
+}
+
+function median(a){
+    a=[...a].sort((x,y)=>x-y);
+    return a[Math.floor(a.length/2)];
+}
+
+function stddev(a){
+
+    const m=mean(a);
+
+    return Math.sqrt(
+        a.reduce((s,v)=>s+(v-m)*(v-m),0)/a.length
+    );
+}
+
+document.getElementById("analyze").onclick=()=>{
+
+    const data=
+        JSON.parse(document.getElementById("input").value);
+
+    const tbody=document.getElementById("tbody");
+    tbody.innerHTML="";
+
+    const canvas=document.getElementById("chart");
+    const ctx=canvas.getContext("2d");
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    const medians=[];
+
+    for(const row of data){
+
+        const s=row.samples;
+
+        const m=median(s);
+
+        medians.push(m);
+
+        const tr=document.createElement("tr");
+
+        tr.innerHTML=`
+<td>${row.port}</td>
+<td>${m.toFixed(2)}</td>
+<td>${mean(s).toFixed(2)}</td>
+<td>${Math.min(...s).toFixed(2)}</td>
+<td>${Math.max(...s).toFixed(2)}</td>
+<td>${stddev(s).toFixed(2)}</td>
+`;
+
+        tbody.appendChild(tr);
+
+    }
+
+    const max=Math.max(...medians);
+
+    const left=80;
+    const width=90;
+
+    ctx.font="14px sans-serif";
+
+    data.forEach((row,i)=>{
+
+        const x=left+i*width;
+
+        const h=(medians[i]/max)*320;
+
+        ctx.fillStyle="#4a90e2";
+        ctx.fillRect(x,380-h,45,h);
+
+        ctx.fillStyle="black";
+
+        ctx.fillText(
+            row.port,
+            x,
+            400
+        );
+
+        ctx.fillText(
+            medians[i].toFixed(1),
+            x,
+            370-h
+        );
+
+    });
+
+};
+
+</script>
+
+</body>
+</html>

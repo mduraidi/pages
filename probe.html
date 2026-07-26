@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Localhost Probe</title>
+</head>
+<body>
+
+<h2>Localhost Probe</h2>
+<button id="probe">Probe</button>
+
+<pre id="out"></pre>
+
+<script>
+const ports = [3000, 4000, 5000, 8080, 9222];
+const out = document.getElementById("out");
+
+async function probe(port) {
+  const start = performance.now();
+
+  try {
+    await fetch(`http://127.0.0.1:${port}/`, {
+      mode: "cors",
+      cache: "no-store"
+      // Uncomment to test browsers implementing LNA:
+      // targetAddressSpace: "loopback"
+    });
+
+    return {
+      port,
+      state: "response",
+      time: Math.round(performance.now() - start)
+    };
+  } catch (e) {
+    return {
+      port,
+      state: e.name,
+      message: e.message,
+      time: Math.round(performance.now() - start)
+    };
+  }
+}
+
+document.getElementById("probe").onclick = async () => {
+  out.textContent = "";
+
+  for (const port of ports) {
+    const r = await probe(port);
+    out.textContent += JSON.stringify(r, null, 2) + "\n\n";
+  }
+};
+</script>
+
+</body>
+</html>
